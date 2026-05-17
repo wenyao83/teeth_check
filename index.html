@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#0a0a0f" />
+<title>Smile Check ✨</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --mint: #a8f0d4;
+    --cream: #fdf6ec;
+    --deep: #0a0a0f;
+    --glow: #7fffd4;
+    --warm: #f4c87a;
+    --soft-white: rgba(255,255,255,0.9);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--deep);
+    font-family: 'DM Sans', sans-serif;
+    overflow: hidden;
+    touch-action: none;
+  }
+
+  /* ── SPLASH SCREEN ── */
+  #splash {
+    position: fixed; inset: 0; z-index: 100;
+    background: var(--deep);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 16px;
+    transition: opacity 0.6s ease;
+  }
+  #splash.hide { opacity: 0; pointer-events: none; }
+
+  .tooth-icon {
+    font-size: 72px;
+    animation: float 2.4s ease-in-out infinite;
+    filter: drop-shadow(0 0 20px var(--glow));
+  }
+  @keyframes float {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+  }
+
+  .splash-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 2.6rem;
+    color: var(--cream);
+    letter-spacing: -0.5px;
+    text-align: center;
+  }
+  .splash-title span { color: var(--mint); font-style: italic; }
+
+  .splash-sub {
+    color: rgba(255,255,255,0.45);
+    font-size: 0.9rem;
+    font-weight: 300;
+    text-align: center;
+    max-width: 240px;
+    line-height: 1.5;
+  }
+
+  .start-btn {
+    margin-top: 24px;
+    background: var(--mint);
+    color: var(--deep);
+    border: none;
+    border-radius: 100px;
+    padding: 16px 44px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    box-shadow: 0 0 30px rgba(127,255,212,0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .start-btn:active { transform: scale(0.96); box-shadow: 0 0 15px rgba(127,255,212,0.2); }
+
+  /* ── CAMERA VIEW ── */
+  #app {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    background: #000;
+  }
+
+  #video {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    transform-origin: center;
+  }
+
+  /* Dental mirror ring overlay */
+  #overlay {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mirror-ring {
+    width: min(78vw, 340px);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    border: 3px solid rgba(168,240,212,0.7);
+    box-shadow:
+      0 0 0 6px rgba(168,240,212,0.08),
+      0 0 40px rgba(127,255,212,0.25),
+      inset 0 0 40px rgba(0,0,0,0.15);
+    transition: border-color 0.3s, box-shadow 0.3s;
+  }
+  .mirror-ring.bright {
+    border-color: rgba(255,255,200,0.9);
+    box-shadow:
+      0 0 0 6px rgba(255,255,200,0.12),
+      0 0 60px rgba(255,255,160,0.45),
+      inset 0 0 60px rgba(255,255,200,0.08);
+  }
+
+  /* Crosshair guides */
+  .crosshair {
+    position: absolute;
+    background: rgba(168,240,212,0.35);
+  }
+  .crosshair.h { width: min(60vw, 260px); height: 1px; }
+  .crosshair.v { width: 1px; height: min(60vw, 260px); }
+
+  /* Brightness overlay */
+  #brightness-layer {
+    position: absolute; inset: 0;
+    background: white;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+    mix-blend-mode: screen;
+  }
+
+  /* ── HEADER ── */
+  #header {
+    position: relative; z-index: 10;
+    padding: 16px 20px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.7) 0%, transparent 100%);
+  }
+  .app-name {
+    font-family: 'DM Serif Display', serif;
+    font-style: italic;
+    color: var(--mint);
+    font-size: 1.3rem;
+    text-shadow: 0 0 12px rgba(127,255,212,0.5);
+  }
+  .flip-btn {
+    background: rgba(255,255,255,0.12);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-radius: 50%;
+    width: 42px; height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.2rem;
+    cursor: pointer;
+    color: white;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+    backdrop-filter: blur(4px);
+  }
+  .flip-btn:active { background: rgba(255,255,255,0.25); }
+
+  /* ── BOTTOM CONTROLS ── */
+  #controls {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    z-index: 10;
+    padding: 20px 24px 36px;
+    background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
+  }
+
+  .control-row {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .label {
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.5);
+    min-width: 60px;
+  }
+
+  /* Sliders */
+  input[type=range] {
+    -webkit-appearance: none;
+    flex: 1;
+    height: 4px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.15);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--mint);
+    box-shadow: 0 0 10px rgba(127,255,212,0.5);
+    cursor: pointer;
+  }
+  #zoom-slider::-webkit-slider-thumb { background: var(--warm); box-shadow: 0 0 10px rgba(244,200,122,0.5); }
+
+  /* Torch toggle */
+  .torch-btn {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 100px;
+    padding: 9px 18px;
+    color: white;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.2s;
+    backdrop-filter: blur(4px);
+    flex: 1;
+  }
+  .torch-btn.on {
+    background: rgba(255,248,150,0.2);
+    border-color: rgba(255,248,150,0.5);
+    color: #fffaaa;
+    box-shadow: 0 0 20px rgba(255,248,80,0.2);
+  }
+
+  /* Capture / snapshot button */
+  .capture-btn {
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: var(--soft-white);
+    border: 4px solid rgba(255,255,255,0.4);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s, box-shadow 0.1s;
+    box-shadow: 0 0 20px rgba(255,255,255,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+  }
+  .capture-btn:active { transform: scale(0.92); box-shadow: 0 0 8px rgba(255,255,255,0.15); }
+
+  /* ── SNAPSHOT PREVIEW ── */
+  #snapshot-panel {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(0,0,0,0.92);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: 32px 24px;
+  }
+  #snapshot-panel.show { display: flex; }
+  #snapshot-img {
+    max-width: 100%;
+    max-height: 60vh;
+    border-radius: 16px;
+    border: 2px solid rgba(168,240,212,0.4);
+    box-shadow: 0 0 40px rgba(0,0,0,0.6);
+  }
+  .snap-title {
+    font-family: 'DM Serif Display', serif;
+    font-size: 1.4rem;
+    color: var(--cream);
+    text-align: center;
+  }
+  .snap-actions {
+    display: flex; gap: 12px;
+  }
+  .snap-btn {
+    padding: 12px 28px;
+    border-radius: 100px;
+    border: none;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .snap-btn.save { background: var(--mint); color: var(--deep); font-weight: 500; }
+  .snap-btn.discard { background: rgba(255,255,255,0.1); color: white; }
+
+  /* ── TIP BANNER ── */
+  #tip {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, calc(-50% + min(42vw, 185px)));
+    z-index: 10;
+    background: rgba(0,0,0,0.55);
+    backdrop-filter: blur(6px);
+    border: 1px solid rgba(168,240,212,0.25);
+    border-radius: 100px;
+    padding: 6px 16px;
+    color: rgba(255,255,255,0.65);
+    font-size: 0.72rem;
+    white-space: nowrap;
+    pointer-events: none;
+    letter-spacing: 0.04em;
+    opacity: 1;
+    transition: opacity 1s;
+  }
+  #tip.fade { opacity: 0; }
+
+  canvas { display: none; }
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="tooth-icon">🦷</div>
+  <h1 class="splash-title">Smile<br/><span>Check</span></h1>
+  <p class="splash-sub">A little dental mirror in your pocket — find those sneaky food bits!</p>
+  <button class="start-btn" onclick="startCamera()">Open Camera</button>
+</div>
+
+<!-- MAIN APP -->
+<div id="app" style="display:none">
+  <video id="video" autoplay playsinline muted></video>
+  <div id="brightness-layer"></div>
+
+  <!-- Mirror overlay -->
+  <div id="overlay">
+    <div class="mirror-ring" id="ring">
+      <div class="crosshair h"></div>
+      <div class="crosshair v"></div>
+    </div>
+  </div>
+
+  <div id="tip">📍 Position teeth inside the circle</div>
+
+  <!-- Header -->
+  <div id="header">
+    <span class="app-name">Smile Check</span>
+    <button class="flip-btn" onclick="flipCamera()" title="Flip camera">🔄</button>
+  </div>
+
+  <!-- Controls -->
+  <div id="controls">
+    <div class="control-row">
+      <span class="label">💡 Bright</span>
+      <input type="range" id="bright-slider" min="0" max="100" value="0"
+             oninput="setBrightness(this.value)" />
+    </div>
+    <div class="control-row">
+      <span class="label">🔍 Zoom</span>
+      <input type="range" id="zoom-slider" min="10" max="50" value="10"
+             oninput="setZoom(this.value)" />
+    </div>
+    <div class="control-row">
+      <button class="torch-btn" id="torch-btn" onclick="toggleTorch()">
+        🔦 <span id="torch-label">Flash Off</span>
+      </button>
+      <button class="capture-btn" onclick="capturePhoto()" title="Take photo">📸</button>
+    </div>
+  </div>
+
+  <canvas id="canvas"></canvas>
+</div>
+
+<!-- SNAPSHOT PANEL -->
+<div id="snapshot-panel">
+  <p class="snap-title">Got it! 🦷</p>
+  <img id="snapshot-img" src="" alt="Snapshot" />
+  <div class="snap-actions">
+    <button class="snap-btn save" onclick="savePhoto()">💾 Save</button>
+    <button class="snap-btn discard" onclick="closeSnapshot()">✕ Discard</button>
+  </div>
+</div>
+
+<script>
+  let stream = null;
+  let track = null;
+  let facingMode = 'environment'; // rear camera by default
+  let torchOn = false;
+  let currentZoom = 1;
+  let videoEl = document.getElementById('video');
+  let canvas = document.getElementById('canvas');
+
+  async function startCamera() {
+    document.getElementById('splash').classList.add('hide');
+    setTimeout(() => {
+      document.getElementById('splash').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+    }, 700);
+    await initCamera();
+    // Fade tip after 4s
+    setTimeout(() => document.getElementById('tip').classList.add('fade'), 4000);
+  }
+
+  async function initCamera() {
+    if (stream) { stream.getTracks().forEach(t => t.stop()); }
+    torchOn = false;
+    updateTorchUI();
+
+    const constraints = {
+      video: {
+        facingMode: { ideal: facingMode },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        advanced: [{ zoom: 1 }]
+      },
+      audio: false
+    };
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      videoEl.srcObject = stream;
+      track = stream.getVideoTracks()[0];
+
+      // Reset zoom slider
+      document.getElementById('zoom-slider').value = 10;
+      currentZoom = 1;
+
+      // Check torch support
+      const caps = track.getCapabilities();
+      document.getElementById('torch-btn').style.display = caps.torch ? 'flex' : 'none';
+
+      // Set zoom range based on device capability
+      if (caps.zoom) {
+        const zSlider = document.getElementById('zoom-slider');
+        const maxZ = Math.min(caps.zoom.max, 8);
+        zSlider.min = Math.round(caps.zoom.min * 10);
+        zSlider.max = Math.round(maxZ * 10);
+        zSlider.value = Math.round(caps.zoom.min * 10);
+      }
+    } catch (e) {
+      alert('Camera access denied. Please allow camera permission and try again.');
+    }
+  }
+
+  async function flipCamera() {
+    facingMode = facingMode === 'environment' ? 'user' : 'environment';
+    await initCamera();
+  }
+
+  async function toggleTorch() {
+    if (!track) return;
+    torchOn = !torchOn;
+    try {
+      await track.applyConstraints({ advanced: [{ torch: torchOn }] });
+    } catch(e) { torchOn = false; }
+    updateTorchUI();
+  }
+
+  function updateTorchUI() {
+    const btn = document.getElementById('torch-btn');
+    const lbl = document.getElementById('torch-label');
+    const ring = document.getElementById('ring');
+    btn.classList.toggle('on', torchOn);
+    lbl.textContent = torchOn ? 'Flash On' : 'Flash Off';
+    ring.classList.toggle('bright', torchOn);
+  }
+
+  function setBrightness(val) {
+    const opacity = (val / 100) * 0.45;
+    document.getElementById('brightness-layer').style.opacity = opacity;
+  }
+
+  async function setZoom(val) {
+    if (!track) return;
+    const zoom = val / 10;
+    currentZoom = zoom;
+    try {
+      const caps = track.getCapabilities();
+      if (caps.zoom) {
+        await track.applyConstraints({ advanced: [{ zoom }] });
+      } else {
+        // CSS fallback zoom
+        videoEl.style.transform = `scale(${zoom})`;
+      }
+    } catch(e) {
+      videoEl.style.transform = `scale(${zoom})`;
+    }
+  }
+
+  function capturePhoto() {
+    canvas.width = videoEl.videoWidth;
+    canvas.height = videoEl.videoHeight;
+    const ctx = canvas.getContext('2d');
+
+    // Apply brightness boost to captured frame
+    const bright = document.getElementById('bright-slider').value;
+    ctx.filter = `brightness(${1 + bright/100})`;
+
+    // Mirror if front camera
+    if (facingMode === 'user') {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
+    ctx.drawImage(videoEl, 0, 0);
+
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+    document.getElementById('snapshot-img').src = dataUrl;
+    document.getElementById('snapshot-panel').classList.add('show');
+  }
+
+  function savePhoto() {
+    const img = document.getElementById('snapshot-img').src;
+    const a = document.createElement('a');
+    a.href = img;
+    a.download = `smile-check-${Date.now()}.jpg`;
+    a.click();
+    closeSnapshot();
+  }
+
+  function closeSnapshot() {
+    document.getElementById('snapshot-panel').classList.remove('show');
+  }
+
+  // Prevent scroll bounce
+  document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+</script>
+</body>
+</html>
