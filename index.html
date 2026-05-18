@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="theme-color" content="#080b0f" />
+<title>Smile Check AI ✨</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700&family=Syne+Mono&family=Inter:wght@300;400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #080b0f;
+    --mint: #00e5a0;
+    --red: #ff4d6a;
+    --amber: #ffb347;
+    --glass: rgba(255,255,255,0.06);
+    --glass-border: rgba(255,255,255,0.1);
+    --text: #e8edf2;
+    --muted: rgba(232,237,242,0.4);
+  }
+
+  html, body {
+    width: 100%; height: 100%;
+    background: var(--bg);
+    font-family: 'Inter', sans-serif;
+    overflow: hidden;
+    touch-action: none;
+    color: var(--text);
+  }
+
+  /* ── SPLASH ── */
+  #splash {
+    position: fixed; inset: 0; z-index: 200;
+    background: var(--bg);
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 0;
+    padding: 40px 32px;
+  }
+  #splash.hide { animation: fadeOut 0.5s forwards; }
+  @keyframes fadeOut { to { opacity: 0; pointer-events: none; } }
+
+  .splash-icon {
+    font-size: 64px;
+    margin-bottom: 24px;
+    animation: pulse-glow 2.5s ease-in-out infinite;
+    filter: drop-shadow(0 0 24px rgba(0,229,160,0.5));
+  }
+  @keyframes pulse-glow {
+    0%,100% { filter: drop-shadow(0 0 16px rgba(0,229,160,0.4)); transform: scale(1); }
+    50% { filter: drop-shadow(0 0 32px rgba(0,229,160,0.7)); transform: scale(1.06); }
+  }
+
+  .splash-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 2.8rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .splash-title em { color: var(--mint); font-style: normal; }
+
+  .splash-badge {
+    font-family: 'Syne Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.15em;
+    color: var(--mint);
+    background: rgba(0,229,160,0.1);
+    border: 1px solid rgba(0,229,160,0.25);
+    border-radius: 100px;
+    padding: 4px 12px;
+    margin-bottom: 28px;
+  }
+
+  .splash-desc {
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-weight: 300;
+    text-align: center;
+    line-height: 1.65;
+    max-width: 280px;
+    margin-bottom: 36px;
+  }
+
+  .api-input-wrap {
+    width: 100%;
+    max-width: 320px;
+    margin-bottom: 14px;
+  }
+  .api-input-wrap label {
+    display: block;
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+  .api-input-wrap input {
+    width: 100%;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 13px 16px;
+    color: var(--text);
+    font-family: 'Syne Mono', monospace;
+    font-size: 0.8rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .api-input-wrap input:focus { border-color: rgba(0,229,160,0.5); }
+  .api-input-wrap input::placeholder { color: rgba(255,255,255,0.2); }
+
+  .api-hint {
+    font-size: 0.7rem;
+    color: var(--muted);
+    text-align: center;
+    max-width: 280px;
+    margin-bottom: 28px;
+    line-height: 1.5;
+  }
+  .api-hint a { color: var(--mint); text-decoration: none; }
+
+  .start-btn {
+    width: 100%;
+    max-width: 320px;
+    background: var(--mint);
+    color: var(--bg);
+    border: none;
+    border-radius: 14px;
+    padding: 16px;
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    box-shadow: 0 0 32px rgba(0,229,160,0.3);
+    transition: transform 0.15s, box-shadow 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .start-btn:active { transform: scale(0.97); }
+  .start-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── APP CONTAINER ── */
+  #app {
+    position: fixed; inset: 0;
+    display: none;
+    flex-direction: column;
+    background: #000;
+  }
+
+  /* Camera + canvas stacked */
+  #camera-wrap {
+    position: absolute; inset: 0;
+  }
+
+  #video {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+
+  /* Detection overlay canvas */
+  #det-canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+  }
+
+  /* ── HEADER ── */
+  #header {
+    position: relative; z-index: 20;
+    padding: 14px 18px 10px;
+    display: flex; align-items: center; justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(8,11,15,0.85) 0%, transparent 100%);
+  }
+
+  .app-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--mint);
+    letter-spacing: -0.02em;
+    text-shadow: 0 0 20px rgba(0,229,160,0.5);
+  }
+
+  .header-right { display: flex; gap: 10px; align-items: center; }
+
+  .icon-btn {
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 50%;
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+    cursor: pointer;
+    color: white;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s;
+    backdrop-filter: blur(8px);
+  }
+  .icon-btn:active { background: rgba(255,255,255,0.18); }
+
+  /* ── STATUS BAR ── */
+  #status-bar {
+    position: absolute;
+    top: 70px; left: 50%; transform: translateX(-50%);
+    z-index: 20;
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(8,11,15,0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--glass-border);
+    border-radius: 100px;
+    padding: 6px 14px 6px 10px;
+    white-space: nowrap;
+    transition: all 0.3s;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s, box-shadow 0.3s;
+    flex-shrink: 0;
+  }
+  .status-dot.scanning {
+    background: var(--mint);
+    box-shadow: 0 0 8px var(--mint);
+    animation: blink 1s ease-in-out infinite;
+  }
+  .status-dot.found { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .status-dot.clean { background: var(--mint); box-shadow: 0 0 8px var(--mint); }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  #status-text {
+    font-family: 'Syne Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.05em;
+    color: var(--text);
+  }
+
+  /* ── FINDINGS PANEL ── */
+  #findings {
+    position: absolute;
+    bottom: 170px; left: 16px; right: 16px;
+    z-index: 20;
+    max-height: 120px;
+    overflow-y: auto;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .finding-chip {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,77,106,0.15);
+    border: 1px solid rgba(255,77,106,0.35);
+    border-radius: 10px;
+    padding: 8px 12px;
+    backdrop-filter: blur(8px);
+    animation: slideUp 0.3s ease;
+  }
+  @keyframes slideUp { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+
+  .finding-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--red); flex-shrink: 0;
+    box-shadow: 0 0 6px var(--red);
+  }
+  .finding-text {
+    font-size: 0.78rem;
+    color: var(--text);
+    line-height: 1.3;
+  }
+
+  .clean-chip {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(0,229,160,0.1);
+    border: 1px solid rgba(0,229,160,0.3);
+    border-radius: 10px;
+    padding: 8px 12px;
+    backdrop-filter: blur(8px);
+  }
+  .clean-chip span { font-size: 0.78rem; color: var(--mint); }
+
+  /* ── BOTTOM CONTROLS ── */
+  #controls {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    z-index: 20;
+    padding: 16px 20px 32px;
+    background: linear-gradient(to top, rgba(8,11,15,0.92) 0%, transparent 100%);
+  }
+
+  .slider-row {
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 14px;
+  }
+  .slider-label {
+    font-size: 0.68rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    min-width: 52px;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    flex: 1; height: 3px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.12);
+    outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--mint);
+    box-shadow: 0 0 8px rgba(0,229,160,0.6);
+    cursor: pointer;
+  }
+  #zoom-slider::-webkit-slider-thumb {
+    background: var(--amber);
+    box-shadow: 0 0 8px rgba(255,179,71,0.5);
+  }
+
+  .btn-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .torch-btn {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    background: var(--glass);
+    border: 1px solid var(--glass-border);
+    border-radius: 12px;
+    padding: 12px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.82rem;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    backdrop-filter: blur(8px);
+    transition: all 0.2s;
+  }
+  .torch-btn.on {
+    background: rgba(255,248,150,0.15);
+    border-color: rgba(255,248,150,0.4);
+    color: #fffaaa;
+    box-shadow: 0 0 16px rgba(255,248,80,0.15);
+  }
+
+  /* Big scan toggle button */
+  .scan-btn {
+    width: 62px; height: 62px;
+    border-radius: 50%;
+    border: 3px solid var(--mint);
+    background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: all 0.2s;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .scan-btn::before {
+    content: '';
+    position: absolute; inset: 4px;
+    border-radius: 50%;
+    background: var(--mint);
+    transition: all 0.2s;
+  }
+  .scan-btn.active::before { background: var(--red); }
+  .scan-btn.active { border-color: var(--red); box-shadow: 0 0 20px rgba(255,77,106,0.4); }
+  .scan-btn-icon {
+    position: relative; z-index: 1;
+    font-size: 1.4rem;
+    pointer-events: none;
+  }
+
+  /* Interval display */
+  .interval-val {
+    font-family: 'Syne Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--muted);
+    min-width: 28px;
+    text-align: right;
+  }
+
+  #brightness-layer {
+    position: absolute; inset: 0;
+    background: white; opacity: 0;
+    pointer-events: none;
+    mix-blend-mode: screen;
+    transition: opacity 0.2s;
+  }
+</style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="splash">
+  <div class="splash-icon">🦷</div>
+  <h1 class="splash-title">Smile<em>Check</em></h1>
+  <div class="splash-badge">AI · REAL-TIME</div>
+  <p class="splash-desc">AI scans your teeth live and highlights any food debris with bounding boxes — no photos needed.</p>
+
+  <div class="api-input-wrap">
+    <label>Anthropic API Key</label>
+    <input type="password" id="api-key-input" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
+  </div>
+  <p class="api-hint">
+    Get your free key at <a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a><br/>
+    Your key stays on your device only.
+  </p>
+
+  <button class="start-btn" id="start-btn" onclick="startApp()">Start Scanning</button>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div id="camera-wrap">
+    <video id="video" autoplay playsinline muted></video>
+    <div id="brightness-layer"></div>
+    <canvas id="det-canvas"></canvas>
+  </div>
+
+  <!-- Header -->
+  <div id="header">
+    <span class="app-name">SmileCheck AI</span>
+    <div class="header-right">
+      <button class="icon-btn" onclick="changeKey()" title="Change API Key">🔑</button>
+      <button class="icon-btn" onclick="flipCamera()" title="Flip">🔄</button>
+    </div>
+  </div>
+
+  <!-- Status -->
+  <div id="status-bar">
+    <div class="status-dot" id="status-dot"></div>
+    <span id="status-text">Ready</span>
+  </div>
+
+  <!-- Findings -->
+  <div id="findings"></div>
+
+  <!-- Controls -->
+  <div id="controls">
+    <div class="slider-row">
+      <span class="slider-label">💡 Bright</span>
+      <input type="range" id="bright-slider" min="0" max="100" value="0" oninput="setBrightness(this.value)" />
+    </div>
+    <div class="slider-row">
+      <span class="slider-label">🔍 Zoom</span>
+      <input type="range" id="zoom-slider" min="10" max="50" value="10" oninput="setZoom(this.value)" />
+    </div>
+    <div class="slider-row">
+      <span class="slider-label">⏱ Speed</span>
+      <input type="range" id="interval-slider" min="2" max="10" value="4" oninput="updateInterval(this.value)" />
+      <span class="interval-val" id="interval-val">4s</span>
+    </div>
+    <div class="btn-row">
+      <button class="torch-btn" id="torch-btn" onclick="toggleTorch()">🔦 <span id="torch-label">Flash Off</span></button>
+      <button class="scan-btn" id="scan-btn" onclick="toggleScan()" title="Start/Stop AI scan">
+        <span class="scan-btn-icon" id="scan-icon">▶</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let apiKey = '';
+  let stream = null, track = null;
+  let facingMode = 'environment';
+  let torchOn = false;
+  let scanning = false;
+  let scanInterval = null;
+  let intervalSeconds = 4;
+  let lastBoxes = [];
+  let animFrame = null;
+
+  const video = document.getElementById('video');
+  const detCanvas = document.getElementById('det-canvas');
+  const ctx = detCanvas.getContext('2d');
+
+  // ── SPLASH → APP ──
+
+  // On load: if key already saved, skip splash entirely
+  window.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem('smilecheck_apikey');
+    if (saved && saved.startsWith('sk-ant-')) {
+      apiKey = saved;
+      document.getElementById('splash').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+      initCamera();
+      startDrawLoop();
+    } else if (saved) {
+      document.getElementById('api-key-input').value = saved;
+    }
+  });
+
+  async function startApp() {
+    apiKey = document.getElementById('api-key-input').value.trim();
+    if (!apiKey.startsWith('sk-ant-')) {
+      alert('Please enter a valid Anthropic API key (starts with sk-ant-)');
+      return;
+    }
+    localStorage.setItem('smilecheck_apikey', apiKey);
+    document.getElementById('splash').classList.add('hide');
+    setTimeout(() => { document.getElementById('splash').style.display = 'none'; }, 600);
+    document.getElementById('app').style.display = 'flex';
+    await initCamera();
+    startDrawLoop();
+  }
+
+  // ── CAMERA ──
+  async function initCamera() {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+    torchOn = false; updateTorchUI();
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: facingMode }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      });
+      video.srcObject = stream;
+      track = stream.getVideoTracks()[0];
+
+      const caps = track.getCapabilities();
+      document.getElementById('torch-btn').style.display = caps.torch ? 'flex' : 'none';
+      if (caps.zoom) {
+        const s = document.getElementById('zoom-slider');
+        s.min = Math.round(caps.zoom.min * 10);
+        s.max = Math.round(Math.min(caps.zoom.max, 8) * 10);
+        s.value = s.min;
+      }
+    } catch(e) {
+      alert('Camera access denied. Please allow camera permission.');
+    }
+  }
+
+  async function flipCamera() {
+    facingMode = facingMode === 'environment' ? 'user' : 'environment';
+    lastBoxes = [];
+    await initCamera();
+  }
+
+  // ── TORCH / BRIGHTNESS / ZOOM ──
+  async function toggleTorch() {
+    if (!track) return;
+    torchOn = !torchOn;
+    try { await track.applyConstraints({ advanced: [{ torch: torchOn }] }); }
+    catch(e) { torchOn = false; }
+    updateTorchUI();
+  }
+  function updateTorchUI() {
+    document.getElementById('torch-btn').classList.toggle('on', torchOn);
+    document.getElementById('torch-label').textContent = torchOn ? 'Flash On' : 'Flash Off';
+  }
+  function setBrightness(v) {
+    document.getElementById('brightness-layer').style.opacity = (v / 100) * 0.45;
+  }
+  async function setZoom(v) {
+    if (!track) return;
+    const zoom = v / 10;
+    try {
+      const caps = track.getCapabilities();
+      if (caps.zoom) await track.applyConstraints({ advanced: [{ zoom }] });
+      else video.style.transform = `scale(${zoom})`;
+    } catch(e) { video.style.transform = `scale(${v/10})`; }
+  }
+  function updateInterval(v) {
+    intervalSeconds = parseInt(v);
+    document.getElementById('interval-val').textContent = v + 's';
+    if (scanning) { clearInterval(scanInterval); scheduleScan(); }
+  }
+
+  // ── SCAN TOGGLE ──
+  function toggleScan() {
+    scanning = !scanning;
+    const btn = document.getElementById('scan-btn');
+    const icon = document.getElementById('scan-icon');
+    btn.classList.toggle('active', scanning);
+    icon.textContent = scanning ? '■' : '▶';
+
+    if (scanning) {
+      setStatus('scanning', 'Scanning...');
+      runScan(); // immediate first scan
+      scheduleScan();
+    } else {
+      clearInterval(scanInterval);
+      lastBoxes = [];
+      setStatus('idle', 'Ready');
+      document.getElementById('findings').style.display = 'none';
+    }
+  }
+
+  function scheduleScan() {
+    scanInterval = setInterval(runScan, intervalSeconds * 1000);
+  }
+
+  // ── CAPTURE FRAME → BASE64 ──
+  function captureFrame() {
+    const cap = document.createElement('canvas');
+    cap.width = video.videoWidth || 640;
+    cap.height = video.videoHeight || 480;
+    const c = cap.getContext('2d');
+    const bright = document.getElementById('bright-slider').value;
+    c.filter = `brightness(${1 + bright/100})`;
+    c.drawImage(video, 0, 0);
+    return cap.toDataURL('image/jpeg', 0.75).split(',')[1];
+  }
+
+  // ── AI SCAN ──
+  async function runScan() {
+    if (!scanning) return;
+    setStatus('scanning', 'Analysing...');
+
+    const imageData = captureFrame();
+    const prompt = `You are a dental hygiene assistant. Analyse this image of teeth.
+
+Identify any visible food debris, plaque, or dirty spots stuck in or between the teeth.
+
+For each detected issue, return a bounding box relative to the image dimensions as percentages (0-100).
+
+Respond ONLY with valid JSON in this exact format, nothing else:
+{
+  "clean": true/false,
+  "findings": [
+    {
+      "label": "short description (max 5 words)",
+      "x": <left edge % 0-100>,
+      "y": <top edge % 0-100>,
+      "w": <width % 0-100>,
+      "h": <height % 0-100>
+    }
+  ]
+}
+
+If teeth look clean or no teeth are visible, set clean: true and findings: [].`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: imageData } },
+              { type: 'text', text: prompt }
+            ]
+          }]
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error?.message || 'API error');
+
+      const raw = data.content.map(b => b.text || '').join('');
+      const clean = raw.replace(/```json|```/g, '').trim();
+      const parsed = JSON.parse(clean);
+
+      lastBoxes = parsed.findings || [];
+      renderFindings(parsed);
+
+      if (parsed.clean || lastBoxes.length === 0) {
+        setStatus('clean', 'All clear ✓');
+      } else {
+        setStatus('found', `${lastBoxes.length} issue${lastBoxes.length > 1 ? 's' : ''} found`);
+      }
+    } catch(e) {
+      console.error(e);
+      lastBoxes = [];
+
+      // Friendly error diagnosis
+      let msg = '';
+      const errText = e.message || '';
+
+      if (!navigator.onLine) {
+        msg = '📶 No internet connection. Check your WiFi or mobile data.';
+      } else if (errText.includes('401') || errText.includes('invalid_api_key') || errText.includes('authentication')) {
+        msg = '🔑 Invalid API key. Please check your key at console.anthropic.com and restart the app.';
+        scanning = false;
+        clearInterval(scanInterval);
+        document.getElementById('scan-btn').classList.remove('active');
+        document.getElementById('scan-icon').textContent = '▶';
+      } else if (errText.includes('403') || errText.includes('permission')) {
+        msg = '🚫 API key lacks permission. Make sure it is active at console.anthropic.com.';
+      } else if (errText.includes('429') || errText.includes('rate_limit') || errText.includes('overloaded')) {
+        msg = '⏳ Too many requests. Slow down the Speed slider and try again.';
+      } else if (errText.includes('credit') || errText.includes('billing') || errText.includes('insufficient')) {
+        msg = '💳 No API credits left. Top up at console.anthropic.com → Billing.';
+        scanning = false;
+        clearInterval(scanInterval);
+        document.getElementById('scan-btn').classList.remove('active');
+        document.getElementById('scan-icon').textContent = '▶';
+      } else if (errText.includes('Failed to fetch') || errText.includes('NetworkError')) {
+        msg = '🌐 Network error. This can happen on some networks that block API calls. Try mobile data instead of WiFi.';
+      } else {
+        msg = '⚠️ Error: ' + (errText || 'Unknown error. Check your API key and internet connection.');
+      }
+
+      setStatus('idle', 'Error');
+      showErrorBanner(msg);
+    }
+  }
+
+  function showErrorBanner(msg) {
+    let banner = document.getElementById('error-banner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'error-banner';
+      banner.style.cssText = `
+        position: absolute; top: 110px; left: 16px; right: 16px; z-index: 30;
+        background: rgba(255,77,106,0.15); border: 1px solid rgba(255,77,106,0.5);
+        border-radius: 14px; padding: 12px 14px; backdrop-filter: blur(10px);
+        font-size: 0.8rem; line-height: 1.5; color: #fff;
+        display: flex; align-items: flex-start; gap: 10px;
+        animation: slideUp 0.3s ease;
+      `;
+      const close = document.createElement('button');
+      close.textContent = '✕';
+      close.style.cssText = `
+        background: none; border: none; color: rgba(255,255,255,0.5);
+        font-size: 1rem; cursor: pointer; margin-left: auto; flex-shrink: 0; padding: 0 0 0 8px;
+      `;
+      close.onclick = () => banner.remove();
+      banner.appendChild(document.createElement('span'));
+      banner.appendChild(close);
+      document.getElementById('app').appendChild(banner);
+    }
+    banner.querySelector('span').textContent = msg;
+    // Auto-dismiss after 8 seconds for non-critical errors
+    clearTimeout(banner._timer);
+    banner._timer = setTimeout(() => banner.remove(), 8000);
+  }
+
+  // ── RENDER FINDINGS LIST ──
+  function renderFindings(parsed) {
+    const panel = document.getElementById('findings');
+    panel.innerHTML = '';
+
+    if (parsed.clean || !parsed.findings || parsed.findings.length === 0) {
+      panel.style.display = 'flex';
+      panel.innerHTML = `<div class="clean-chip"><span>✅ Teeth look clean!</span></div>`;
+      setTimeout(() => { panel.style.display = 'none'; }, 3000);
+      return;
+    }
+
+    panel.style.display = 'flex';
+    parsed.findings.forEach(f => {
+      const chip = document.createElement('div');
+      chip.className = 'finding-chip';
+      chip.innerHTML = `<div class="finding-dot"></div><span class="finding-text">${f.label}</span>`;
+      panel.appendChild(chip);
+    });
+  }
+
+  // ── DRAW BOUNDING BOXES (animation loop) ──
+  function startDrawLoop() {
+    function loop() {
+      resizeCanvas();
+      drawBoxes();
+      animFrame = requestAnimationFrame(loop);
+    }
+    loop();
+  }
+
+  function resizeCanvas() {
+    if (detCanvas.width !== detCanvas.offsetWidth || detCanvas.height !== detCanvas.offsetHeight) {
+      detCanvas.width = detCanvas.offsetWidth;
+      detCanvas.height = detCanvas.offsetHeight;
+    }
+  }
+
+  function drawBoxes() {
+    ctx.clearRect(0, 0, detCanvas.width, detCanvas.height);
+    if (!lastBoxes.length) return;
+
+    const W = detCanvas.width;
+    const H = detCanvas.height;
+    const t = Date.now() / 1000;
+
+    lastBoxes.forEach((box, i) => {
+      const x = (box.x / 100) * W;
+      const y = (box.y / 100) * H;
+      const w = (box.w / 100) * W;
+      const h = (box.h / 100) * H;
+
+      // Pulsing glow
+      const pulse = 0.6 + 0.4 * Math.sin(t * 3 + i);
+
+      // Outer glow
+      ctx.shadowColor = `rgba(255,77,106,${pulse * 0.8})`;
+      ctx.shadowBlur = 16;
+
+      // Box
+      ctx.strokeStyle = `rgba(255,77,106,${0.7 + 0.3 * pulse})`;
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(x, y, w, h);
+
+      // Corner accents
+      ctx.shadowBlur = 0;
+      const cs = Math.min(w, h, 20);
+      ctx.strokeStyle = '#ff4d6a';
+      ctx.lineWidth = 3;
+      // TL
+      ctx.beginPath(); ctx.moveTo(x, y + cs); ctx.lineTo(x, y); ctx.lineTo(x + cs, y); ctx.stroke();
+      // TR
+      ctx.beginPath(); ctx.moveTo(x + w - cs, y); ctx.lineTo(x + w, y); ctx.lineTo(x + w, y + cs); ctx.stroke();
+      // BL
+      ctx.beginPath(); ctx.moveTo(x, y + h - cs); ctx.lineTo(x, y + h); ctx.lineTo(x + cs, y + h); ctx.stroke();
+      // BR
+      ctx.beginPath(); ctx.moveTo(x + w - cs, y + h); ctx.lineTo(x + w, y + h); ctx.lineTo(x + w, y + h - cs); ctx.stroke();
+
+      // Label pill
+      const label = box.label || 'Food debris';
+      ctx.font = '500 11px Inter, sans-serif';
+      const tw = ctx.measureText(label).width;
+      const ph = 20, pw = tw + 14;
+      const lx = x, ly = y - ph - 4;
+
+      ctx.fillStyle = 'rgba(255,77,106,0.85)';
+      ctx.beginPath();
+      ctx.roundRect(lx, Math.max(ly, 4), pw, ph, 6);
+      ctx.fill();
+
+      ctx.fillStyle = '#fff';
+      ctx.fillText(label, lx + 7, Math.max(ly, 4) + 14);
+    });
+
+    ctx.shadowBlur = 0;
+  }
+
+  // ── STATUS ──
+  function setStatus(state, text) {
+    const dot = document.getElementById('status-dot');
+    dot.className = 'status-dot';
+    if (state === 'scanning') dot.classList.add('scanning');
+    else if (state === 'found') dot.classList.add('found');
+    else if (state === 'clean') dot.classList.add('clean');
+    document.getElementById('status-text').textContent = text;
+  }
+
+  // ── CHANGE API KEY ──
+  function changeKey() {
+    const newKey = prompt('Enter new Anthropic API key:', '');
+    if (newKey === null) return; // cancelled
+    if (!newKey.trim().startsWith('sk-ant-')) {
+      alert('Invalid key — must start with sk-ant-');
+      return;
+    }
+    apiKey = newKey.trim();
+    localStorage.setItem('smilecheck_apikey', apiKey);
+    alert('✅ API key updated and saved!');
+  }
+
+  // Prevent scroll bounce
+  document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+</script>
+</body>
+</html>
